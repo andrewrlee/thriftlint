@@ -96,7 +96,9 @@ func readBlackList(filename string) map[string]bool {
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
-		if len(line) > 0 {
+		fmt.Println(line)
+		if len(line) > 0 && !strings.HasPrefix(line, "#") {
+			fmt.Println("accepted;" + line)
 			namesBlacklist[strings.TrimSpace(scanner.Text())] = true
 		}
 	}
