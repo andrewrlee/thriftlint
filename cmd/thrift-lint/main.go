@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"gopkg.in/alecthomas/kingpin.v3-unstable"
 
@@ -13,6 +15,7 @@ import (
 
 var (
 	includeDirsFlag = kingpin.Flag("include", "Include directories to search.").Short('I').PlaceHolder("DIR").ExistingDirs()
+	blacklist       = kingpin.Flag("blacklist", "File containing blacklisted files.").ExistingFile()
 	debugFlag       = kingpin.Flag("debug", "Enable debug logging.").Bool()
 	disableFlag     = kingpin.Flag("disable", "Linters to disable.").PlaceHolder("LINTER").Strings()
 	listFlag        = kingpin.Flag("list", "List linter checks.").Bool()
@@ -25,10 +28,18 @@ func main() {
 
 For details, please refer to https://github.com/UrbanCompass/thriftlint
 `
+
 	kingpin.Parse()
+
+	var blacklistedWords map[string]bool
+
+	if len(*blacklist) > 0 {
+		blacklistedWords = readBlackList(*blacklist)
+	}
+
 	checkers := thriftlint.Checks{
 		checks.CheckIndentation(),
-		checks.CheckNames(nil, nil),
+		checks.CheckNames(nil, blacklistedWords),
 		checks.CheckOptional(),
 		checks.CheckDefaultValues(),
 		checks.CheckEnumSequence(),
@@ -68,4 +79,31 @@ For details, please refer to https://github.com/UrbanCompass/thriftlint
 		status |= 1 << uint(msg.Severity)
 	}
 	os.Exit(status)
+}
+
+func readBlackList(filename string) map[string]bool {
+
+	namesBlacklist := make(map[string]bool)
+
+	file, err := os.Open(filename)
+	if err != nil {
+		log.Fatal(err)
+		return namesBlacklist
+	}
+
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if len(line) > 0 {
+			namesBlacklist[strings.TrimSpace(scanner.Text())] = true
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		log.Fatal(err)
+	}
+
+	return namesBlacklist
 }
